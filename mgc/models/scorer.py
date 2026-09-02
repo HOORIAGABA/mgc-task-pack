@@ -24,10 +24,7 @@ from pathlib import Path
 
 import numpy as np
 from sklearn.linear_model import LogisticRegression
-from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
-from sklearn.naive_bayes import GaussianNB
-from sklearn.svm import SVC
-from sklearn.neighbors import KNeighborsClassifier
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import (
     accuracy_score, precision_score, recall_score,
@@ -134,13 +131,6 @@ def main():
         ("Random Forest", RandomForestClassifier(
             n_estimators=100, max_depth=6, class_weight="balanced",
             random_state=42, n_jobs=-1), False),
-        ("Gradient Boosting", GradientBoostingClassifier(
-            n_estimators=100, max_depth=4, learning_rate=0.1, random_state=42), True),
-        ("Naive Bayes", GaussianNB(), True),
-        ("K-Nearest Neighbors", KNeighborsClassifier(n_neighbors=15), True),
-        ("SVM (RBF)", SVC(
-            C=1.0, kernel="rbf", class_weight="balanced",
-            probability=True, random_state=42), True),
     ]
 
     results = []
@@ -165,7 +155,7 @@ def main():
     print(f"{'Model':<25s} {'Acc':>6s} {'Prec':>6s} {'Recall':>7s} {'F1':>6s} {'AUC':>6s}")
     print("-" * 72)
     for r in results:
-        marker = " <-- best" if r == results[0] else ""
+        marker = " <-- chosen" if r == results[0] else ""
         print(f"{r['name']:<25s} {r['accuracy']:>5.1%} {r['precision']:>5.1%} {r['recall']:>6.1%} {r['f1']:>5.1%} {r['auc']:>5.3f}{marker}")
     print("=" * 72)
     print(f"\nChosen metric: recall (6.9% class imbalance -> missing converts is costly)")

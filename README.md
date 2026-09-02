@@ -97,8 +97,11 @@ own words for refusals/conflicts, and computes pricing from a fixed table.
 
 ### Schema (`sql/schema.sql`)
 
-One `leads` table. Defended as minimal: this is a lead *event log* — every
-row is one interaction with a lead, not one lead.
+One `leads` table. Defended as minimal: one row per lead. The
+`crm_record_hash` column uniquely identifies a person — if the same lead is
+entered twice by different agents, the UNIQUE constraint rejects the second
+insert. In production you'd UPSERT instead, but the constraint is the hard
+backstop.
 
 Key design choices:
 - `lead_id` is the primary key (unique per CRM row).
@@ -155,16 +158,17 @@ Recall catches as many real converts as possible; false positives are cheap.
 
 ### Results
 
-| Metric | Value |
-|---|---|
-| Accuracy | 67.8% |
-| Precision | 13.7% |
-| **Recall** | **68.0%** |
-| F1 | 22.8% |
-| AUC-ROC | 0.742 |
+| Metric | Logistic Regression | Random Forest |
+|---|---|---|
+| Accuracy | 67.8% | 71.9% |
+| Precision | 13.7% | 13.7% |
+| **Recall** | **68.0%** | 57.0% |
+| F1 | 22.8% | 22.1% |
+| AUC-ROC | 0.742 | 0.724 |
 
-**Top features:** `referred_by_existing_client` (+), `has_financing_approved`
-(+), `first_response_minutes` (-), `source=Referral` (+).
+Logistic Regression chosen: better recall (68% vs 57%) and AUC (0.742 vs 0.724).
+The linear model + balanced class weights handles the 6.9% minority better than
+trees, which tend to predict the majority class.
 
 ---
 
