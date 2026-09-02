@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MGC Sales Assistant</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, sans-serif; max-width: 800px; margin: 2rem auto; padding: 0 1rem; color: #222; }
+  h1 { margin-bottom: .3rem; }
+  .sub { color: #666; margin-bottom: 2rem; font-size: .9rem; }
+  section { margin-bottom: 2.5rem; }
+  h2 { font-size: 1.1rem; margin-bottom: .8rem; border-bottom: 2px solid #ddd; padding-bottom: .3rem; }
+  label { display: block; margin-top: .6rem; font-weight: 600; font-size: .85rem; }
+  input, select { width: 100%; padding: .45rem .6rem; margin-top: .2rem; border: 1px solid #bbb; border-radius: 4px; font-size: .9rem; }
+  button { margin-top: .8rem; padding: .55rem 1.4rem; background: #1a56db; color: #fff; border: none; border-radius: 4px; font-size: .9rem; cursor: pointer; }
+  button:hover { background: #1442a8; }
+  .row { display: flex; gap: 1rem; }
+  .row > * { flex: 1; }
+  .result { margin-top: 1rem; padding: 1rem; background: #f7f7f7; border-radius: 6px; white-space: pre-wrap; line-height: 1.5; font-size: .9rem; }
+  .result .src { color: #555; font-size: .8rem; margin-top: .5rem; }
+  .badge { display: inline-block; padding: .15rem .5rem; border-radius: 3px; font-size: .8rem; font-weight: 600; margin-right: .4rem; }
+  .badge.good { background: #d1fae5; color: #065f46; }
+  .badge.bad  { background: #fee2e2; color: #991b1b; }
+  .badge.warn { background: #fef3c7; color: #92400e; }
+</style>
+</head>
+<body>
+<h1>MGC Sales Assistant</h1>
+<p class="sub">Ask document questions or score a lead — grounded in MGC's own docs and data.</p>
+
+<section>
+<h2>Document Q&amp;A</h2>
+<label for="q">Ask a question about pricing, payment plans, policies…</label>
+<input id="q" placeholder="e.g. What's the base price of a 2-bed in Block B?">
+<button onclick="ask()">Ask</button>
+<div id="qa-result" class="result" style="display:none"></div>
+</section>
+
+<section>
+<h2>Lead Scoring</h2>
+<div class="row">
+  <div><label>Source</label>
+    <select id="src">
+      <option>Facebook Ads</option><option>Google Search</option><option>Instagram</option>
+      <option>Property Portal</option><option>Referral</option><option>Walk-in</option>
+      <option>WhatsApp Campaign</option><option>Expo Stall</option><option>Billboard</option>
+    </select>
+  </div>
+  <div><label>City</label><input id="city" placeholder="Islamabad"></div>
+  <div><label>Property type</label>
+    <select id="ptype">
+      <option>Apartment</option><option>Plot</option><option>Villa</option>
+      <option>Penthouse</option><option>Farmhouse</option><option>Commercial Shop</option>
+    </select>
+  </div>
+</div>
+<div class="row">
+  <div><label>Budget (PKR lakhs)</label><input id="budget" type="number" placeholder="150"></div>
+  <div><label>Agent experience (years)</label><input id="exp" type="number" step="0.1" placeholder="3.5"></div>
+  <div><label>First response (minutes)</label><input id="resp" type="number" step="1" placeholder="30"></div>
+</div>
+<div class="row">
+  <div><label><input type="checkbox" id="overseas"> Overseas buyer</label></div>
+  <div><label><input type="checkbox" id="referral"> Referred by existing client</label></div>
+  <div><label><input type="checkbox" id="financing"> Has financing approved</label></div>
+</div>
+<button onclick="score()">Score lead</button>
+<div id="score-result" class="result" style="display:none"></div>
+</section>
+
+<script>
+async function ask() {
+  const q = document.getElementById('q').value.trim();
+  if (!q) return;
+  const el = document.getElementById('qa-result');
+  el.style.display = 'block';
+  el.innerHTML = '<em>Loading…</em>';
+  try {
+    const res = await fetch('/api/ask', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({question: q})
+    });
+    const data = await res.json();
+    let html = '';
+    const badge = data.status === 'answered' ? 'good' : data.status === 'conflict' ? 'warn' : data.status === 'refused' ? 'bad' : 'warn';
+    html += `<span class="badge ${badge}">${data.status}</span>\n\n`;
+    html += data.answer + '\n';
+    if (data.sources && data.sources.length) {
+      html += '\nSources:\n' + data.sources.map(s => '  • ' + s).join('\n');
+    }
+    el.textContent = '';
+    el.innerHTML = html.replace(/\n/g, '<br>');
+  } catch(e) { el.textContent = 'Error: ' + e; }
+}
+
+async function score() {
+  const el = document.getElementById('score-result');
+  el.style.display = 'block';
+  el.innerHTML = '<em>Scoring…</em>';
+  const body = {
+    source: document.getElementById('src').value,
+    city: document.getElementById('city').value || 'Unknown',
+    property_type: document.getElementById('ptype').value,
+    budget_pkr_lac: parseFloat(document.getElementById('budget').value) || null,
+    agent_experience_years: parseFloat(document.getElementById('exp').value) || null,
+    first_response_minutes: parseFloat(document.getElementById('resp').value) || null,
+    is_overseas: document.getElementById('overseas').checked,
+    referred_by_existing_client: document.getElementById('referral').checked,
+    has_financing_approved: document.getElementById('financing').checked,
+  };
+  try {
+    const res = await fetch('/api/score', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    const pct = (data.probability * 100).toFixed(1);
+    const badge = data.probability >= 0.5 ? 'good' : data.probability >= 0.2 ? 'warn' : 'bad';
+    el.innerHTML = `<span class="badge ${badge}">${data.label}</span>\n\nConversion probability: ${pct}%`;
+  } catch(e) { el.textContent = 'Error: ' + e; }
+}
+</script>
+</body>
+</html>
